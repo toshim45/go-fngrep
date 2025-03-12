@@ -114,7 +114,6 @@ func main() {
 		if flagsErr, ok := err.(*flags.Error); ok {
 			// If it's a help request, print the help message and exit gracefully
 			if flagsErr.Type == flags.ErrHelp {
-				fmt.Println(err)
 				return
 			}
 		}
