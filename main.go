@@ -103,27 +103,24 @@ var opts struct {
 	Prefix       string `short:"p" long:"prefix" description:"Function prefix to grep"`
 	RegexPattern string `short:"r" long:"regexp" description:"Function line regex to grep"`
 	Positional   struct {
-		CmdName  string
 		Filename string
-	} `positional-args:"yes" required:"yes"`
+	} `positional-args:"true" required:"true"`
 }
 
 func main() {
-	_, err := flags.ParseArgs(&opts, os.Args)
+	_, err := flags.Parse(&opts)
 	if err != nil {
-		if err != nil {
-			// Check the specific error type
-			if flagsErr, ok := err.(*flags.Error); ok {
-				// If it's a help request, print the help message and exit gracefully
-				if flagsErr.Type == flags.ErrHelp {
-					fmt.Println(err)
-					return
-				}
+		// Check the specific error type
+		if flagsErr, ok := err.(*flags.Error); ok {
+			// If it's a help request, print the help message and exit gracefully
+			if flagsErr.Type == flags.ErrHelp {
+				fmt.Println(err)
+				return
 			}
-			// For other errors, print the error message and exit with a non-zero status
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
 		}
+		// For other errors, print the error message and exit with a non-zero status
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
 	run(opts.Prefix, opts.RegexPattern, opts.Positional.Filename)
