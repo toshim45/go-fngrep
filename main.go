@@ -15,22 +15,22 @@ func containsPrefix(line, prefix string) bool {
 	return strings.HasPrefix(line, prefix)
 }
 
-// Function to extract lines inside brackets and print them
-func extractLinesInsideBrackets(line string) []string {
-	var result []string
-	// Regular expression to match content inside brackets
-	re := regexp.MustCompile(`\{(.*?)\}`)
-	matches := re.FindAllStringSubmatch(line, -1)
-
-	for _, match := range matches {
-		// match[1] contains the content inside the brackets
-		result = append(result, match[1])
-	}
-	return result
+// Function to check for lines containing a given regex pattern
+func matchPattern(line string, rp *regexp.Regexp) bool {
+	return rp.MatchString(line)
 }
 
 // Function to extract content inside curly brackets, including multi-line curly brackets
 func extractMultiLineContentInsideCurlyBrackets(scanner *bufio.Scanner) string {
+	return extractMultiLineContentInsideXBrackets(scanner, "{", "}")
+}
+
+// Function to extract content inside round brackets/parentheses, including multi-line round brackets/parentheses
+func extractMultiLineContentInsideParentheses(scanner *bufio.Scanner) string {
+	return extractMultiLineContentInsideXBrackets(scanner, "(", ")")
+}
+
+func extractMultiLineContentInsideXBrackets(scanner *bufio.Scanner, openBracket, closeBracket string) string {
 	var content strings.Builder
 	inBrackets := false
 
@@ -38,13 +38,13 @@ func extractMultiLineContentInsideCurlyBrackets(scanner *bufio.Scanner) string {
 		line := scanner.Text()
 
 		// If we encounter an opening curly bracket, start collecting content
-		if strings.Contains(line, "{") {
+		if strings.Contains(line, openBracket) {
 			inBrackets = true
 			// Start collecting content, potentially including the opening bracket
-			content.WriteString(line[strings.Index(line, "{")+1:])
-		} else if inBrackets && strings.Contains(line, "}") {
+			content.WriteString(line[strings.Index(line, openBracket)+1:])
+		} else if inBrackets && strings.Contains(line, closeBracket) {
 			// If we encounter the closing curly bracket, stop collecting content
-			// content.WriteString(line[:strings.Index(line, "}")])
+			content.WriteString(line)
 			inBrackets = false
 			break
 		} else if inBrackets {
@@ -53,16 +53,10 @@ func extractMultiLineContentInsideCurlyBrackets(scanner *bufio.Scanner) string {
 		}
 	}
 
-	result := content.String()
-
-	if strings.HasSuffix(result, "\n") {
-		return result[:len(result)-1]
-	}
-
-	return result
+	return content.String()
 }
 
-func run(prefix string, filename string) {
+func run(prefix string, regexPattern string, filename string) {
 	// Open a sample file or use standard input (e.g., `os.Stdin` for user input)
 	file, err := os.Open(filename) // Replace with your file name or os.Stdin
 	if err != nil {
@@ -71,6 +65,11 @@ func run(prefix string, filename string) {
 	}
 	defer file.Close()
 
+	var rp *regexp.Regexp
+	if regexPattern != "" {
+		rp = regexp.MustCompile(regexPattern)
+	}
+
 	// Scanner to read the file line by line
 	scanner := bufio.NewScanner(file)
 
@@ -78,14 +77,19 @@ func run(prefix string, filename string) {
 		line := scanner.Text()
 
 		// Check if the line contains the specified prefix
-		if containsPrefix(line, prefix) && strings.Contains(line, "{") {
+		if prefix != "" && containsPrefix(line, prefix) && strings.Contains(line, "{") {
 			// Check and print lines inside brackets
 			fmt.Println(line)
 			contentInsideBrackets := extractMultiLineContentInsideCurlyBrackets(scanner)
 			if contentInsideBrackets != "" {
 				fmt.Println(contentInsideBrackets)
 			}
-			fmt.Println("}")
+		} else if regexPattern != "" && matchPattern(line, rp) {
+			fmt.Println(line)
+			contentInsideBracket := extractMultiLineContentInsideParentheses(scanner)
+			if contentInsideBracket != "" {
+				fmt.Println(contentInsideBracket)
+			}
 		}
 	}
 
@@ -96,8 +100,9 @@ func run(prefix string, filename string) {
 }
 
 var opts struct {
-	Prefix     string `short:"p" long:"prefix" description:"Function prefix to grep"`
-	Positional struct {
+	Prefix       string `short:"p" long:"prefix" description:"Function prefix to grep"`
+	RegexPattern string `short:"r" long:"regexp" description:"Function line regex to grep"`
+	Positional   struct {
 		CmdName  string
 		Filename string
 	} `positional-args:"yes" required:"yes"`
@@ -121,5 +126,5 @@ func main() {
 		}
 	}
 
-	run(opts.Prefix, opts.Positional.Filename)
+	run(opts.Prefix, opts.RegexPattern, opts.Positional.Filename)
 }
