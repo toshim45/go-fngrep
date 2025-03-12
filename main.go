@@ -21,36 +21,40 @@ func matchPattern(line string, rp *regexp.Regexp) bool {
 }
 
 // Function to extract content inside curly brackets, including multi-line curly brackets
-func extractMultiLineContentInsideCurlyBrackets(scanner *bufio.Scanner) string {
-	return extractMultiLineContentInsideXBrackets(scanner, "{", "}")
+func extractMultiLineContentInsideCurlyBrackets(scanner *bufio.Scanner, isFirstLineContainOpenBracket bool) string {
+	return extractMultiLineContentInsideXBrackets(scanner, isFirstLineContainOpenBracket, "{", "}")
 }
 
 // Function to extract content inside round brackets/parentheses, including multi-line round brackets/parentheses
-func extractMultiLineContentInsideParentheses(scanner *bufio.Scanner) string {
-	return extractMultiLineContentInsideXBrackets(scanner, "(", ")")
+func extractMultiLineContentInsideParentheses(scanner *bufio.Scanner, isFirstLineContainOpenBracket bool) string {
+	return extractMultiLineContentInsideXBrackets(scanner, isFirstLineContainOpenBracket, "(", ")")
 }
 
-func extractMultiLineContentInsideXBrackets(scanner *bufio.Scanner, openBracket, closeBracket string) string {
+func extractMultiLineContentInsideXBrackets(scanner *bufio.Scanner, isFirstLineContainOpenBracket bool, openBracket, closeBracket string) string {
 	var content strings.Builder
-	inBrackets := false
+	inBrackets := isFirstLineContainOpenBracket
 
+	// i := 0
 	for scanner.Scan() {
 		line := scanner.Text()
-
-		// If we encounter an opening curly bracket, start collecting content
-		if strings.Contains(line, openBracket) {
-			inBrackets = true
+		// fmt.Println("[debug]", i, line, inBrackets, strings.Contains(line, closeBracket))
+		// If we encounter an opening bracket, start collecting content
+		if !inBrackets && strings.Contains(line, openBracket) {
 			// Start collecting content, potentially including the opening bracket
+			inBrackets = true
 			content.WriteString(line[strings.Index(line, openBracket)+1:])
 		} else if inBrackets && strings.Contains(line, closeBracket) {
-			// If we encounter the closing curly bracket, stop collecting content
+			// If we encounter the closing bracket, stop collecting content
 			content.WriteString(line)
 			inBrackets = false
 			break
 		} else if inBrackets {
-			// Collect content when inside curly brackets, including new lines
-			content.WriteString(line + "\n")
+			// Collect content when inside brackets, including new lines
+			if len(line) > 0 {
+				content.WriteString(line + "\n")
+			}
 		}
+		// i++
 	}
 
 	return content.String()
@@ -80,13 +84,13 @@ func run(prefix string, regexPattern string, filename string) {
 		if prefix != "" && containsPrefix(line, prefix) && strings.Contains(line, "{") {
 			// Check and print lines inside brackets
 			fmt.Println(line)
-			contentInsideBrackets := extractMultiLineContentInsideCurlyBrackets(scanner)
+			contentInsideBrackets := extractMultiLineContentInsideCurlyBrackets(scanner, true)
 			if contentInsideBrackets != "" {
 				fmt.Println(contentInsideBrackets)
 			}
 		} else if regexPattern != "" && matchPattern(line, rp) {
 			fmt.Println(line)
-			contentInsideBracket := extractMultiLineContentInsideParentheses(scanner)
+			contentInsideBracket := extractMultiLineContentInsideParentheses(scanner, strings.Contains(line, "("))
 			if contentInsideBracket != "" {
 				fmt.Println(contentInsideBracket)
 			}
